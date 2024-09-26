@@ -40,7 +40,7 @@ fn test_debug() {
     assert_eq!(
         format!(
             "{:?}",
-            <_ as TryInto<Hash>>::try_into(*b"01234567890123456789013456789012").unwrap()
+            <_ as Into<Hash>>::into(*b"01234567890123456789013456789012")
         ),
         "Hash(3031323334353637383930313233343536373839303133343536373839303132)"
     );
@@ -64,13 +64,13 @@ fn test_debug_invalid_utf8() -> Result<(), Error> {
         ),
         "BytesM(68656c6c6fc328776f726c64)"
     );
-    // StringM replaces the invalid sequence with the Unicode replacement character.
+    // StringM escapes strings.
     assert_eq!(
         format!(
             "{:?}",
             <_ as TryInto<StringM>>::try_into(b"hello\xc3\x28world")?
         ),
-        "StringM(hello�(world)"
+        r"StringM(hello\xc3(world)"
     );
     Ok(())
 }
@@ -91,7 +91,7 @@ fn test_display() -> Result<(), Error> {
     assert_eq!(
         format!(
             "{}",
-            <_ as TryInto<Hash>>::try_into(*b"01234567890123456789013456789012").unwrap()
+            <_ as Into<Hash>>::into(*b"01234567890123456789013456789012")
         ),
         "3031323334353637383930313233343536373839303133343536373839303132"
     );
@@ -108,13 +108,13 @@ fn test_display_invalid_utf8() -> Result<(), Error> {
         ),
         "68656c6c6fc328776f726c64"
     );
-    // StringM replaces the invalid sequence with the Unicode replacement character.
+    // StringM escapes strings.
     assert_eq!(
         format!(
             "{}",
             <_ as TryInto<StringM>>::try_into(b"hello\xc3\x28world")?
         ),
-        "hello�(world"
+        r"hello\xc3(world"
     );
     Ok(())
 }

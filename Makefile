@@ -4,8 +4,12 @@ CARGO_HACK_ARGS=--feature-powerset --exclude-features default --group-features b
 
 CARGO_DOC_ARGS?=--open
 
-XDRGEN_VERSION=cbff4b31
-XDRGEN_TYPES_CUSTOM_STR_IMPL=PublicKey,AccountId,MuxedAccount,MuxedAccountMed25519,SignerKey,SignerKeyEd25519SignedPayload,NodeId,ScAddress
+XDRGEN_VERSION=b7bc57ecdd277c9575930d3e17c12dfaa76655fc
+# XDRGEN_LOCAL=1
+XDRGEN_TYPES_CUSTOM_STR_IMPL_CURR=PublicKey,AccountId,MuxedAccount,MuxedAccountMed25519,SignerKey,SignerKeyEd25519SignedPayload,NodeId,ScAddress,AssetCode,AssetCode4,AssetCode12,ClaimableBalanceId
+XDRGEN_TYPES_CUSTOM_STR_IMPL_NEXT=PublicKey,AccountId,MuxedAccount,MuxedAccountMed25519,SignerKey,SignerKeyEd25519SignedPayload,NodeId,ScAddress,AssetCode,AssetCode4,AssetCode12,ClaimableBalanceId
+XDRGEN_TYPES_CUSTOM_JSONSCHEMA_IMPL_CURR=PublicKey,AccountId,MuxedAccount,MuxedAccountMed25519,SignerKey,SignerKeyEd25519SignedPayload,NodeId,ScAddress,AssetCode,AssetCode4,AssetCode12,ClaimableBalanceId
+XDRGEN_TYPES_CUSTOM_JSONSCHEMA_IMPL_NEXT=PublicKey,AccountId,MuxedAccount,MuxedAccountMed25519,SignerKey,SignerKeyEd25519SignedPayload,NodeId,ScAddress,AssetCode,AssetCode4,AssetCode12,ClaimableBalanceId
 
 all: build test
 
@@ -18,13 +22,17 @@ build: generate
 
 doc:
 	cargo test --doc --all-features
-	RUSTDOCFLAGS="--cfg docs" cargo +nightly doc --all-features $(CARGO_DOC_ARGS)
+	RUSTDOCFLAGS="--cfg docs" cargo +nightly doc --package stellar-xdr --all-features $(CARGO_DOC_ARGS)
 
 install:
-	cargo install --path . --force --features cli
+	cargo install --locked --path . --force --features cli
 
 readme:
-	cargo readme > README.md
+	cargo +nightly rustdoc -- -Zunstable-options -wjson \
+		&& echo '# stellar-xdr' \
+		| cat target/doc/stellar_xdr.json \
+		| jq -r '"# stellar-xdr\n\n" + .index[.root].docs' \
+		> README.md
 
 watch:
 	cargo watch --clear --watch-when-idle --shell '$(MAKE)'
@@ -33,16 +41,22 @@ generate: src/curr/generated.rs xdr/curr-version src/next/generated.rs xdr/next-
 
 src/curr/generated.rs: $(sort $(wildcard xdr/curr/*.x))
 	> $@
-ifeq ($(LOCAL_XDRGEN),)
+ifeq ($(XDRGEN_LOCAL),)
 	docker run -i --rm -v $$PWD:/wd -w /wd docker.io/library/ruby:latest /bin/bash -c '\
 		gem install specific_install -v 0.3.8 && \
 		gem specific_install https://github.com/stellar/xdrgen.git -b $(XDRGEN_VERSION) && \
-		xdrgen --language rust --namespace generated --output src/curr --rust-types-custom-str-impl $(XDRGEN_TYPES_CUSTOM_STR_IMPL) $^ \
+		xdrgen --language rust --namespace generated --output src/curr \
+			--rust-types-custom-str-impl $(XDRGEN_TYPES_CUSTOM_STR_IMPL_CURR) \
+			--rust-types-custom-jsonschema-impl '$(XDRGEN_TYPES_CUSTOM_JSONSCHEMA_IMPL_CURR)' \
+		$^ \
 		'
 else
 	docker run -i --rm -v $$PWD/../xdrgen:/xdrgen -v $$PWD:/wd -w /wd docker.io/library/ruby:latest /bin/bash -c '\
 		pushd /xdrgen && bundle install --deployment && rake install && popd && \
-		xdrgen --language rust --namespace generated --output src/curr --rust-types-custom-str-impl $(XDRGEN_TYPES_CUSTOM_STR_IMPL) $^ \
+		xdrgen --language rust --namespace generated --output src/curr \
+			--rust-types-custom-str-impl $(XDRGEN_TYPES_CUSTOM_STR_IMPL_CURR) \
+			--rust-types-custom-jsonschema-impl '$(XDRGEN_TYPES_CUSTOM_JSONSCHEMA_IMPL_CURR)' \
+		$^ \
 		'
 endif
 	rustfmt $@
@@ -52,16 +66,22 @@ xdr/curr-version: $(wildcard .git/modules/xdr/curr/**/*) $(wildcard xdr/curr/*.x
 
 src/next/generated.rs: $(sort $(wildcard xdr/next/*.x))
 	> $@
-ifeq ($(LOCAL_XDRGEN),)
+ifeq ($(XDRGEN_LOCAL),)
 	docker run -i --rm -v $$PWD:/wd -w /wd docker.io/library/ruby:latest /bin/bash -c '\
 		gem install specific_install -v 0.3.8 && \
 		gem specific_install https://github.com/stellar/xdrgen.git -b $(XDRGEN_VERSION) && \
-		xdrgen --language rust --namespace generated --output src/next $^ \
+		xdrgen --language rust --namespace generated --output src/next \
+			--rust-types-custom-str-impl $(XDRGEN_TYPES_CUSTOM_STR_IMPL_NEXT) \
+			--rust-types-custom-jsonschema-impl '$(XDRGEN_TYPES_CUSTOM_JSONSCHEMA_IMPL_NEXT)' \
+		$^ \
 		'
 else
 	docker run -i --rm -v $$PWD/../xdrgen:/xdrgen -v $$PWD:/wd -w /wd docker.io/library/ruby:latest /bin/bash -c '\
 		pushd /xdrgen && bundle install --deployment && rake install && popd && \
-		xdrgen --language rust --namespace generated --output src/next $^ \
+		xdrgen --language rust --namespace generated --output src/next \
+			--rust-types-custom-str-impl $(XDRGEN_TYPES_CUSTOM_STR_IMPL_NEXT) \
+			--rust-types-custom-jsonschema-impl '$(XDRGEN_TYPES_CUSTOM_JSONSCHEMA_IMPL_NEXT)' \
+		$^ \
 		'
 endif
 	rustfmt $@

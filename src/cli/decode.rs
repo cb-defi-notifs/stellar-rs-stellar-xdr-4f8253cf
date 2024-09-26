@@ -1,4 +1,5 @@
 use std::{
+    fmt::Debug,
     fs::File,
     io::{stdin, Read},
     path::PathBuf,
@@ -8,16 +9,16 @@ use std::{
 use clap::{Args, ValueEnum};
 use serde::Serialize;
 
-use crate::Channel;
+use crate::cli::{skip_whitespace::SkipWhitespace, Channel};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("unknown type {0}, choose one of {1:?}")]
     UnknownType(String, &'static [&'static str]),
     #[error("error decoding XDR: {0}")]
-    ReadXdrCurr(#[from] stellar_xdr::curr::Error),
+    ReadXdrCurr(#[from] crate::curr::Error),
     #[error("error decoding XDR: {0}")]
-    ReadXdrNext(#[from] stellar_xdr::next::Error),
+    ReadXdrNext(#[from] crate::next::Error),
     #[error("error reading file: {0}")]
     ReadFile(#[from] std::io::Error),
     #[error("error generating JSON: {0}")]
@@ -63,6 +64,8 @@ impl Default for InputFormat {
 pub enum OutputFormat {
     Json,
     JsonFormatted,
+    RustDebug,
+    RustDebugFormatted,
 }
 
 impl Default for OutputFormat {
@@ -75,35 +78,38 @@ macro_rules! run_x {
     ($f:ident, $m:ident) => {
         fn $f(&self) -> Result<(), Error> {
             let mut files = self.files()?;
-            let r#type = stellar_xdr::$m::TypeVariant::from_str(&self.r#type).map_err(|_| {
-                Error::UnknownType(
-                    self.r#type.clone(),
-                    &stellar_xdr::$m::TypeVariant::VARIANTS_STR,
-                )
+            let r#type = crate::$m::TypeVariant::from_str(&self.r#type).map_err(|_| {
+                Error::UnknownType(self.r#type.clone(), &crate::$m::TypeVariant::VARIANTS_STR)
             })?;
             for f in &mut files {
-                let mut f = stellar_xdr::$m::Limited::new(f, stellar_xdr::$m::Limits::none());
                 match self.input {
                     InputFormat::Single => {
-                        let t = stellar_xdr::$m::Type::read_xdr_to_end(r#type, &mut f)?;
+                        let mut l = crate::$m::Limited::new(f, crate::$m::Limits::none());
+                        let t = crate::$m::Type::read_xdr_to_end(r#type, &mut l)?;
                         self.out(&t)?;
                     }
                     InputFormat::SingleBase64 => {
-                        let t = stellar_xdr::$m::Type::read_xdr_base64_to_end(r#type, &mut f)?;
+                        let sw = SkipWhitespace::new(f);
+                        let mut l = crate::$m::Limited::new(sw, crate::$m::Limits::none());
+                        let t = crate::$m::Type::read_xdr_base64_to_end(r#type, &mut l)?;
                         self.out(&t)?;
                     }
                     InputFormat::Stream => {
-                        for t in stellar_xdr::$m::Type::read_xdr_iter(r#type, &mut f) {
+                        let mut l = crate::$m::Limited::new(f, crate::$m::Limits::none());
+                        for t in crate::$m::Type::read_xdr_iter(r#type, &mut l) {
                             self.out(&t?)?;
                         }
                     }
                     InputFormat::StreamBase64 => {
-                        for t in stellar_xdr::$m::Type::read_xdr_base64_iter(r#type, &mut f) {
+                        let sw = SkipWhitespace::new(f);
+                        let mut l = crate::$m::Limited::new(sw, crate::$m::Limits::none());
+                        for t in crate::$m::Type::read_xdr_base64_iter(r#type, &mut l) {
                             self.out(&t?)?;
                         }
                     }
                     InputFormat::StreamFramed => {
-                        for t in stellar_xdr::$m::Type::read_xdr_framed_iter(r#type, &mut f) {
+                        let mut l = crate::$m::Limited::new(f, crate::$m::Limits::none());
+                        for t in crate::$m::Type::read_xdr_framed_iter(r#type, &mut l) {
                             self.out(&t?)?;
                         }
                     }
@@ -115,6 +121,11 @@ macro_rules! run_x {
 }
 
 impl Cmd {
+    /// Run the CLIs decode command.
+    ///
+    /// ## Errors
+    ///
+    /// If the command is configured with state that is invalid.
     pub fn run(&self, channel: &Channel) -> Result<(), Error> {
         match channel {
             Channel::Curr => self.run_curr()?,
@@ -141,10 +152,12 @@ impl Cmd {
         }
     }
 
-    fn out(&self, v: &impl Serialize) -> Result<(), Error> {
+    fn out(&self, v: &(impl Serialize + Debug)) -> Result<(), Error> {
         match self.output {
             OutputFormat::Json => println!("{}", serde_json::to_string(v)?),
             OutputFormat::JsonFormatted => println!("{}", serde_json::to_string_pretty(v)?),
+            OutputFormat::RustDebug => println!("{v:?}"),
+            OutputFormat::RustDebugFormatted => println!("{v:#?}"),
         }
         Ok(())
     }

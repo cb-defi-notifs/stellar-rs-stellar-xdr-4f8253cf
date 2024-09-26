@@ -6,28 +6,19 @@ XDR.
 Types are generated from XDR definitions hosted at [stellar/stellar-xdr]
 using [xdrgen].
 
-**This repository contains code that is in early development, incomplete,
-not tested, and not recommended for use. The API is unstable, experimental,
-and is receiving breaking changes frequently.**
-
 [stellar/stellar-xdr]: https://github.com/stellar/stellar-xdr
 [xdrgen]: https://github.com/stellar/xdrgen
 
-### Usage
+## Usage
 
-#### Library
+### Library
 To use the library, include in your toml:
 
 ```toml
 stellar-xdr = { version = "...", default-features = true, features = [] }
 ```
 
-XDR types are available under modules, with the `curr` module containing XDR
-types built from the `stellar/stellar-xdr` `curr` branch. Other top-level
-modules are built from other `stellar/stellar-xdr` branches and releases if
-enabled with features.
-
-##### Features
+#### Features
 
 The crate has several features, tiers of functionality, ancillary
 functionality, and channels of XDR.
@@ -56,7 +47,16 @@ Ancillary functionality:
 1. `base64` – Enables support for base64 encoding and decoding.
 2. `serde` – Enables support for serializing and deserializing types with
 the serde crate.
-3. `arbitrary` – Enables support for interop with the arbitrary crate.
+3. `serde_json` – Enables support for built-in functionality specifically
+for serde_json. Often not required to use the types with serde_json, and
+only necessary to use utility functions that depend on serde_json.
+4. `arbitrary` – Enables support for interop with the arbitrary crate.
+5. `hex` – Enables support for hex in string representations of some types.
+Automatically enabled when serde is enabled.
+6. `schemars` – Enables support for JSON Schema generation. (Experimental)
+
+Features marked experimental may disappear at anytime, see breaking changes
+at anytime, or and may be minimal implementations instead of complete.
 
 Channels of XDR:
 
@@ -67,7 +67,7 @@ If a single channel is enabled the types are available at the root of the
 crate. If multiple channels are enabled they are available in modules at
 the root of the crate.
 
-#### CLI
+### CLI
 
 To use the CLI:
 
@@ -75,7 +75,7 @@ To use the CLI:
 cargo install --locked stellar-xdr --version ... --features cli
 ```
 
-##### Examples
+#### Examples
 
 Parse a `TransactionEnvelope`:
 ```console
@@ -95,5 +95,3 @@ Parse a `BucketEntry` framed stream from a bucket file:
 ```console
 stellar-xdr decode --type BucketEntry --input stream-framed --output json-formatted bucket.xdr
 ```
-
-License: Apache-2.0

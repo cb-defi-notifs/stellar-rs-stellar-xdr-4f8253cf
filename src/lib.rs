@@ -1,16 +1,16 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(docs, feature(doc_auto_cfg))]
+// TODO: Remove these clippy doc comment allows after improving the
+// auto-generated docs.
+#![allow(clippy::tabs_in_doc_comments)]
+#![allow(clippy::doc_markdown)]
 
 //! Library and CLI containing types and functionality for working with Stellar
 //! XDR.
 //!
 //! Types are generated from XDR definitions hosted at [stellar/stellar-xdr]
 //! using [xdrgen].
-//!
-//! **This repository contains code that is in early development, incomplete,
-//! not tested, and not recommended for use. The API is unstable, experimental,
-//! and is receiving breaking changes frequently.**
 //!
 //! [stellar/stellar-xdr]: https://github.com/stellar/stellar-xdr
 //! [xdrgen]: https://github.com/stellar/xdrgen
@@ -53,7 +53,16 @@
 //! 1. `base64` – Enables support for base64 encoding and decoding.
 //! 2. `serde` – Enables support for serializing and deserializing types with
 //! the serde crate.
-//! 3. `arbitrary` – Enables support for interop with the arbitrary crate.
+//! 3. `serde_json` – Enables support for built-in functionality specifically
+//! for serde_json. Often not required to use the types with serde_json, and
+//! only necessary to use utility functions that depend on serde_json.
+//! 4. `arbitrary` – Enables support for interop with the arbitrary crate.
+//! 5. `hex` – Enables support for hex in string representations of some types.
+//! Automatically enabled when serde is enabled.
+//! 6. `schemars` – Enables support for JSON Schema generation. (Experimental)
+//!
+//! Features marked experimental may disappear at anytime, see breaking changes
+//! at anytime, or and may be minimal implementations instead of complete.
 //!
 //! Channels of XDR:
 //!
@@ -123,3 +132,6 @@ pub mod curr;
 
 #[cfg(feature = "next")]
 pub mod next;
+
+#[cfg(feature = "cli")]
+pub mod cli;
